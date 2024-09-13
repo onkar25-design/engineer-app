@@ -168,6 +168,16 @@ const UpdateTicketForm = () => {
         variant: 'success',
       });
       setImageFiles([]);
+      // Reset form fields after submission
+      setSelectedTicket(null);
+      setUpdateData({
+        company_branch: '',
+        paused: false,
+        completed: false,
+        note: '',
+        note_created_at: '',
+        image_urls: [],
+      });
     } catch (error) {
       setAlert({
         show: true,
@@ -216,7 +226,7 @@ const UpdateTicketForm = () => {
         paused: false,
         completed: false,
         note: '',
-        note_created_at: '', // Reset note_created_at
+        note_created_at: '',
         image_urls: [],
       });
     } catch (error) {
@@ -235,7 +245,15 @@ const UpdateTicketForm = () => {
     <div className="update-ticket-form">
       <img src={companyLogo} alt="Company Logo" className="company-logo-UpdateTicketForm" />
       <h2>Update Ticket</h2>
-      {alert.show && <Alert variant={alert.variant}>{alert.message}</Alert>}
+      {alert.show && (
+        <Alert
+          variant={alert.variant}
+          onClose={() => setAlert({ show: false, message: '', variant: '' })}
+          dismissible
+        >
+          {alert.message}
+        </Alert>
+      )}
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-3" controlId="engineerSelect">
           <Form.Label className="updateform-headings">Select Engineer</Form.Label>

@@ -5,6 +5,13 @@ import { Form, Button, Alert } from 'react-bootstrap';
 import './UpdateEngineer.css';
 import companyLogo from './company-logo.png';
 
+const priorityOptions = [
+  { value: 'None', label: 'None' },
+  { value: 'Low', label: 'Low' },
+  { value: 'Medium', label: 'Medium' },
+  { value: 'High', label: 'High' },
+];
+
 const UpdateTicketForm = () => {
   const [engineerOptions, setEngineerOptions] = useState([]);
   const [selectedEngineer, setSelectedEngineer] = useState(null);
@@ -12,11 +19,10 @@ const UpdateTicketForm = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [updateData, setUpdateData] = useState({
-    company_branch: '',
     paused: false,
     completed: false,
     note: '',
-    note_created_at: '', // Add note_created_at field
+    note_priority: 'None',  
     image_urls: [],
   });
   const [alert, setAlert] = useState({ show: false, message: '', variant: '' });
@@ -44,21 +50,26 @@ const UpdateTicketForm = () => {
   useEffect(() => {
     if (selectedEngineer) {
       const fetchTickets = async () => {
-        const { data, error } = await supabase
-          .from('ticket_main')
-          .select('ticket_number, company_branch')
-          .ilike('engineer', `%${selectedEngineer.value.trim()}%`)
-          .order('ticket_number', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('ticket_main')
+            .select('ticket_number, company_branch')
+            .ilike('engineer', `%${selectedEngineer.value.trim()}%`)
+            .order('ticket_number', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching tickets:', error);
-        } else {
+          if (error) {
+            throw new Error(error.message);
+          }
+
           setTicketOptions(
             data.map((ticket) => ({
               value: ticket.ticket_number,
               label: `${ticket.ticket_number} - ${ticket.company_branch}`,
             }))
           );
+        } catch (error) {
+          console.error('Error fetching tickets:', error.message);
+          setAlert({ show: true, message: 'Error fetching tickets', variant: 'danger' });
         }
       };
 
@@ -69,23 +80,27 @@ const UpdateTicketForm = () => {
   useEffect(() => {
     if (selectedTicket) {
       const fetchTicketDetails = async () => {
-        const { data, error } = await supabase
-          .from('ticket_main')
-          .select('*')
-          .eq('ticket_number', selectedTicket.value)
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from('ticket_main')
+            .select('*')
+            .eq('ticket_number', selectedTicket.value)
+            .single();
 
-        if (error) {
-          console.error('Error fetching ticket details:', error);
-        } else {
+          if (error) {
+            throw new Error(error.message);
+          }
+
           setUpdateData({
-            company_branch: data.company_branch,
             paused: data.paused,
             completed: data.completed,
             note: data.note || '',
-            note_created_at: data.note_created_at || '', // Fetch note_created_at
+            note_priority: data.note_priority || 'None',  
             image_urls: data.callreports ? data.callreports.split(',') : [],
           });
+        } catch (error) {
+          console.error('Error fetching ticket details:', error.message);
+          setAlert({ show: true, message: 'Error fetching ticket details', variant: 'danger' });
         }
       };
 
@@ -142,14 +157,11 @@ const UpdateTicketForm = () => {
     const imageUrlsString = combinedImageUrls.join(',');
 
     const dataToUpdate = {
-      company_branch: updateData.company_branch,
       paused: updateData.paused,
       completed: updateData.completed,
       note: updateData.note,
       callreports: imageUrlsString,
-      note_created_at: updateData.note && !updateData.note_created_at
-        ? new Date().toISOString() // Set note_created_at if note is added
-        : updateData.note_created_at
+      note_priority: updateData.note_priority,
     };
 
     try {
@@ -168,14 +180,13 @@ const UpdateTicketForm = () => {
         variant: 'success',
       });
       setImageFiles([]);
-      // Reset form fields after submission
+      
       setSelectedTicket(null);
       setUpdateData({
-        company_branch: '',
         paused: false,
         completed: false,
         note: '',
-        note_created_at: '',
+        note_priority: 'None',  
         image_urls: [],
       });
     } catch (error) {
@@ -222,11 +233,10 @@ const UpdateTicketForm = () => {
       setSelectedTicket(null);
       setImageFiles([]);
       setUpdateData({
-        company_branch: '',
         paused: false,
         completed: false,
         note: '',
-        note_created_at: '',
+        note_priority: 'None',  
         image_urls: [],
       });
     } catch (error) {
@@ -279,31 +289,14 @@ const UpdateTicketForm = () => {
 
         {selectedTicket && (
           <>
-            <Form.Group className="mb-3" controlId="company_branch">
-              <Form.Label className="updateform-headings">Company Branch</Form.Label>
-              <Form.Control
-                type="text"
-                name="company_branch"
-                value={updateData.company_branch}
-                onChange={(e) => setUpdateData({ ...updateData, company_branch: e.target.value })}
+            <Form.Group className="mb-3" controlId="notePriority">
+              <Form.Label className="updateform-headings">Issue Priority</Form.Label>
+              <Select
+                options={priorityOptions}
+                value={priorityOptions.find(option => option.value === updateData.note_priority)}
+                onChange={(option) => setUpdateData({ ...updateData, note_priority: option.value })}
+                placeholder="Select priority"
               />
-            </Form.Group>
-
-            {/* Note Field */}
-            <Form.Group className="mb-3" controlId="note">
-              <Form.Label className="updateform-headings">Note</Form.Label>
-              <Form.Control
-                as="textarea"
-                name="note"
-                rows={3}
-                value={updateData.note}
-                onChange={(e) => setUpdateData({ ...updateData, note: e.target.value })}
-              />
-              {updateData.note_created_at && (
-                <Form.Text className="text-muted">
-                  Note created at: {new Date(updateData.note_created_at).toLocaleString()}
-                </Form.Text>
-              )}
             </Form.Group>
 
             <Form.Group className="form-group toggle-group">
@@ -321,6 +314,17 @@ const UpdateTicketForm = () => {
               >
                 <div className="slider"></div>
               </div>
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="note">
+              <Form.Label className="updateform-headings">Ticket Issue</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={updateData.note}
+                onChange={(e) => setUpdateData({ ...updateData, note: e.target.value })}
+                placeholder="Describe the issue"
+              />
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="fileUpload">
